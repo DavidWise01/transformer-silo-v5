@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Train the <ono> ROUTER MoE and its baselines on the mixed-regime data, then
 report straight: does a learned router send order-insensitive examples to the
-cheap silo and order-sensitive ones to the plain expert -- getting best-of-both
-accuracy at LOWER average compute?
+cheap silo and order-sensitive ones to the plain expert -- landing near plain's
+accuracy (not guaranteed; it trails on some seeds) at LOWER average compute?
 
 Baselines (each trained on the FULL mixed set):
   silo-only  -- cheap (K^2), but cannot do the order examples
   plain-only -- accurate on both, but ALWAYS pays (N+1)^2
-The router should match plain-only's accuracy while spending less on average.
+The router aims to approach plain-only's accuracy while spending less on average
+(the robust win is the compute; the accuracy edge is seed-dependent -- see sweep.py).
 Deterministic (seed 0).  Run: python train.py
 """
 from __future__ import annotations

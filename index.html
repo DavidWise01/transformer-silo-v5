@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TRANSFORMER SILO v5 · the &lt;ono&gt; router · ROOT0</title>
-<meta name="description" content="transformer-silo v5 by David Lee Wise / ROOT0: a router — the <ono> (order / no-order) gate — reads a regime cue in the input and sends order-insensitive examples to the cheap content silo and order-sensitive ones to the plain order-aware expert. Trained from scratch (gradient-checked). On a mixed-regime task it BEATS both single-expert baselines (0.88 vs plain 0.78, silo 0.68) via expert specialisation AND spends less attention on average (49 vs 81 pairs), routing near-perfectly (bag→silo 99%, order→plain 99%). The honest catch: a router can only do this because the regime is detectable in the input.">
+<meta name="description" content="transformer-silo v5 by David Lee Wise / ROOT0: a router — the <ono> (order / no-order) gate — reads a regime cue and sends order-insensitive examples to the cheap content silo and order-sensitive ones to the plain order-aware expert. Trained to convergence (gradient-checked), verified across 5 seeds. The robust win is conditional computation: ~40% less attention on average (49 vs 81 pairs) on EVERY seed, and it always beats the cheap silo — while landing within a few points of the strong plain baseline (router − plain = −3 to +9 pts, mean +3.3; it trails plain on 1 of 5 seeds). NOT a guaranteed accuracy win. Honest catch: a router can only route because the regime is detectable in the input.">
 <meta name="theme-color" content="#6d3fa0">
 <meta property="og:type" content="website">
 <meta property="og:title" content="TRANSFORMER SILO v5 · the <ono> router">
-<meta property="og:description" content="A learned router routes order-insensitive examples to the cheap silo and order-sensitive ones to the plain expert. Trained (gradient-checked): beats both single-expert baselines (0.88 vs 0.78 / 0.68) at less average compute (49 vs 81 pairs). Honest catch: the regime must be detectable in the input.">
+<meta property="og:description" content="A learned router routes order-insensitive examples to the cheap silo and order-sensitive ones to the plain expert. Trained to convergence, verified across 5 seeds: the robust win is conditional computation — ~40% less compute on every seed, always beats the cheap silo, and edges the strong plain baseline on 4 of 5 seeds (−3 to +9 pts). NOT a guaranteed accuracy win. The regime must be detectable in the input.">
 <meta property="og:url" content="https://davidwise01.github.io/transformer-silo-v5/">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="TRANSFORMER SILO v5 · the <ono> router">
-<meta name="twitter:description" content="Router sends no-order examples to the cheap silo, order examples to the plain expert. Trained, gradient-checked: 0.88 vs baselines 0.78/0.68 at 49 vs 81 avg attention pairs. The regime must be detectable — stated plainly.">
+<meta name="twitter:description" content="Router sends no-order examples to the cheap silo, order examples to the plain expert. Trained to convergence, 5 seeds: ~40% less compute every seed + always beats the cheap silo; edges plain on 4/5 seeds (−3 to +9 pts) — not a guaranteed accuracy win. The regime must be detectable — stated plainly.">
 <link rel="canonical" href="https://davidwise01.github.io/transformer-silo-v5/">
 <style>
 :root{
