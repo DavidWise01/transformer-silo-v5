@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TRANSFORMER SILO v5 · the &lt;ono&gt; router · ROOT0</title>
+<meta name="description" content="transformer-silo v5 by David Lee Wise / ROOT0: a router — the <ono> (order / no-order) gate — reads a regime cue in the input and sends order-insensitive examples to the cheap content silo and order-sensitive ones to the plain order-aware expert. Trained from scratch (gradient-checked). On a mixed-regime task it BEATS both single-expert baselines (0.88 vs plain 0.78, silo 0.68) via expert specialisation AND spends less attention on average (49 vs 81 pairs), routing near-perfectly (bag→silo 99%, order→plain 99%). The honest catch: a router can only do this because the regime is detectable in the input.">
+<meta name="theme-color" content="#6d3fa0">
+<meta property="og:type" content="website">
+<meta property="og:title" content="TRANSFORMER SILO v5 · the <ono> router">
+<meta property="og:description" content="A learned router routes order-insensitive examples to the cheap silo and order-sensitive ones to the plain expert. Trained (gradient-checked): beats both single-expert baselines (0.88 vs 0.78 / 0.68) at less average compute (49 vs 81 pairs). Honest catch: the regime must be detectable in the input.">
+<meta property="og:url" content="https://davidwise01.github.io/transformer-silo-v5/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="TRANSFORMER SILO v5 · the <ono> router">
+<meta name="twitter:description" content="Router sends no-order examples to the cheap silo, order examples to the plain expert. Trained, gradient-checked: 0.88 vs baselines 0.78/0.68 at 49 vs 81 avg attention pairs. The regime must be detectable — stated plainly.">
+<link rel="canonical" href="https://davidwise01.github.io/transformer-silo-v5/">
+<style>
+:root{
+  --paper:#efe9f5; --pan:#f7f3fb; --pan2:#ece4f5;
+  --ink:#241f2e; --ink2:#463d57; --dim:#7a728c;
+  --royal:#6d3fa0; --royal2:#4e2a78;
+  --plain:#5b6b78; --plain2:#3c4a55;
+  --silo:#1f8f66; --silo2:#146b4b;
+  --route:#c9701f; --route2:#9a5214;
+  --gold:#c99128; --gold2:#9a6d18;
+  --signal:#bf4638; --signal2:#8f3025;
+  --line:#dcd2ea; --line2:#e7dff2;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --mono:ui-monospace,"SFMono-Regular","Cascadia Code","Consolas",monospace;
+  --shadow:0 1px 0 #fffc, 0 16px 34px -24px #241f2e44;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased;
+  background-image:repeating-linear-gradient(0deg,#0000 0 33px,#6d3fa00c 33px 34px)}
+.wrap{max-width:1000px;margin:0 auto;padding:0 22px}
+a{color:var(--royal2);text-underline-offset:2px}
+h1,h2,h3{line-height:1.13;font-weight:600;letter-spacing:.2px}
+.mono{font-family:var(--mono)}
+
+header.top{padding:38px 0 12px}
+.sealrow{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.seal{width:112px;height:112px;flex:none;filter:drop-shadow(0 8px 18px -10px #241f2e55)}
+.kick{font-family:var(--mono);font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--royal2)}
+h1.mh{font-size:clamp(29px,5.6vw,50px);margin:.08em 0 .12em;letter-spacing:.6px}
+.lede{font-size:18px;color:var(--ink2);max-width:66ch;margin:.35em 0 0}
+.lede b{color:var(--ink);font-weight:600}
+.lede code{font-family:var(--mono);font-size:15px;background:#fff;border:1px solid var(--line);border-radius:4px;padding:0 5px;color:var(--route2)}
+
+section{padding:26px 0 4px}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold2)}
+h2.sec{font-size:clamp(22px,3.6vw,29px);margin:.14em 0 .18em}
+.sub{color:var(--ink2);max-width:74ch;margin:0 0 16px}
+
+.rig{border:1px solid var(--line);border-radius:15px;background:var(--pan);box-shadow:var(--shadow);overflow:hidden}
+.rtop{display:flex;align-items:center;gap:10px;padding:11px 16px;background:linear-gradient(180deg,#fff8,#fff0);border-bottom:1px solid var(--line2);font-family:var(--mono);font-size:12px;color:var(--ink2);flex-wrap:wrap}
+.rtop b{color:var(--royal2)}
+.rbody{padding:16px 17px}
+.cfg{font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:14px}
+
+/* the routing diagram */
+.route-wrap{border:1px solid var(--line);border-radius:12px;background:#fff;padding:6px 6px 2px;margin-bottom:16px}
+.route-wrap svg{width:100%;height:auto;display:block}
+.regimes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+@media(max-width:640px){.regimes{grid-template-columns:1fr}}
+.reg{border:1px solid var(--line);border-radius:11px;background:#fff;padding:11px 13px;font-family:var(--mono);font-size:12px}
+.reg .rh{font-weight:700;font-size:12.5px;margin-bottom:2px}
+.reg.bag .rh{color:var(--silo2)} .reg.ord .rh{color:var(--route2)}
+.reg .sub2{color:var(--dim);font-size:11px;margin-bottom:7px}
+.reg .flow{display:flex;align-items:center;gap:7px}
+.reg .dest{font-weight:700;color:var(--ink)}
+.reg .pct{margin-left:auto;font-weight:700}
+.reg.bag .pct{color:var(--silo2)} .reg.ord .pct{color:var(--route2)}
+
+/* model comparison rows */
+.models{display:grid;gap:11px;margin-bottom:6px}
+.mrow{display:grid;grid-template-columns:118px 1fr;gap:14px;align-items:center;border:1px solid var(--line);border-radius:11px;background:#fff;padding:11px 14px}
+.mrow.win{border-color:color-mix(in srgb,var(--royal) 45%,#fff);background:color-mix(in srgb,var(--royal) 6%,#fff);box-shadow:0 10px 26px -20px var(--royal)}
+.mrow .name{font-family:var(--mono);font-size:12.5px;font-weight:700}
+.mrow.silo .name{color:var(--silo2)} .mrow.plain .name{color:var(--plain2)} .mrow.router .name{color:var(--royal2)}
+.mrow .tag{display:block;font-size:9.5px;font-weight:600;color:var(--dim);letter-spacing:.04em;margin-top:2px}
+.metrics{display:grid;gap:7px}
+.metric{display:grid;grid-template-columns:54px 1fr 92px;gap:9px;align-items:center;font-family:var(--mono);font-size:11.5px}
+.metric .ml{color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-size:10px}
+.metric .tr{position:relative;height:16px;background:#efeaf6;border-radius:5px;overflow:hidden}
+.metric .fl{position:absolute;top:0;bottom:0;left:0;border-radius:5px}
+.mrow.silo .fl.acc{background:var(--silo)} .mrow.plain .fl.acc{background:var(--plain)} .mrow.router .fl.acc{background:var(--royal)}
+.metric .fl.cmp{background:var(--route);opacity:.85}
+.metric .chance{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--signal);opacity:.7}
+.metric .val{text-align:right;font-weight:700;color:var(--ink)}
+.metric .val .u{color:var(--dim);font-weight:400;font-size:10px}
+
+.callout{font-family:var(--mono);font-size:12px;margin-top:12px;line-height:1.55;color:var(--ink2)}
+.callout b{color:var(--royal2)} .callout .save{color:var(--route2);font-weight:700}
+.verdict{font-family:var(--mono);font-size:13px;line-height:1.55;border-radius:9px;padding:12px 14px;margin:14px 0 4px;border:1px solid color-mix(in srgb,var(--royal) 30%,#fff);background:color-mix(in srgb,var(--royal) 8%,#fff);color:var(--royal2)}
+.snote{padding:11px 17px;font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--pan2);line-height:1.6;border-top:1px solid var(--line2)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.card{border:1px solid var(--line);border-radius:12px;background:var(--pan);padding:16px 18px;box-shadow:var(--shadow)}
+.card h3{font-size:14px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--royal2);margin:0 0 8px}
+.card.sig h3{color:var(--signal2)}
+.card p{margin:.35em 0;font-size:14.5px;color:var(--ink2)}
+.card code{font-family:var(--mono);font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.src{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-top:14px;line-height:1.75}
+.backbar{margin:28px 0 0;padding:15px 0;border-top:1px solid var(--line);display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:12.5px}
+.backbar a{text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:7px 12px;background:var(--pan)}
+.backbar a:hover{border-color:var(--royal)}
+footer{padding:26px 0 60px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--dim)}
+@media(max-width:760px){.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <div class="sealrow">
+    <svg class="seal" viewBox="0 0 120 120" role="img" aria-label="Silo v5 router insignia">
+      <circle cx="60" cy="60" r="56" fill="none" stroke="#6d3fa0" stroke-width="2.4"/>
+      <!-- one input, a diamond gate, two routes -->
+      <circle cx="60" cy="34" r="5" fill="#6d3fa0"/>
+      <path d="M60 40 L74 54 L60 68 L46 54 Z" fill="none" stroke="#6d3fa0" stroke-width="1.9"/>
+      <text x="60" y="57" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7" fill="#4e2a78">ono</text>
+      <path d="M52 62 L38 82" fill="none" stroke="#1f8f66" stroke-width="1.7"/>
+      <path d="M68 62 L82 82" fill="none" stroke="#c9701f" stroke-width="1.7"/>
+      <circle cx="36" cy="86" r="5" fill="none" stroke="#146b4b" stroke-width="1.8"/>
+      <circle cx="84" cy="86" r="5" fill="none" stroke="#9a5214" stroke-width="1.8"/>
+      <text x="36" y="100" text-anchor="middle" font-family="ui-monospace,monospace" font-size="5.3" fill="#146b4b">silo</text>
+      <text x="84" y="100" text-anchor="middle" font-family="ui-monospace,monospace" font-size="5.3" fill="#9a5214">plain</text>
+      <text x="60" y="114" text-anchor="middle" font-family="ui-monospace,monospace" font-size="6.6" fill="#463d57" letter-spacing="1.1">v5 · ROUTER</text>
+    </svg>
+    <div>
+      <div class="kick">the &lt;ono&gt; router · v5</div>
+      <h1 class="mh">THE ROUTER</h1>
+      <p class="lede">Why run every input through the expensive path? v5 puts a <b>router</b> up front — the <code>&lt;ono&gt;</code> <b>(order / no-order)</b> gate — that reads the input and decides: send it to <b>Dave's cheap silo</b> when order doesn't matter, or the <b>plain order-aware expert</b> when it does. Trained from scratch, gradient-checked. It <b>beats both single experts</b> and spends <b>less attention on average</b> — with one honest catch, stated below.</p>
+    </div>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+<section id="how">
+  <div class="eyebrow">The gate</div>
+  <h2 class="sec">One router, two destinations</h2>
+  <p class="sub">Each example is either a <b>bag</b> (label = the most frequent group; <b>order doesn't matter</b>) or an <b>order</b> example (label = the first token's group; <b>order matters</b>). A regime cue rides in the input, so the router <i>can</i> tell them apart. It emits a gate <span class="mono">q = [q_silo, q_plain]</span>; at inference we hard-route to the preferred expert and pay only that expert's attention.</p>
+  <div class="route-wrap">
+    <svg viewBox="0 0 700 210" role="img" aria-label="Routing diagram: input to the ono gate to silo or plain">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#7a728c"/>
+        </marker>
+      </defs>
+      <!-- input -->
+      <rect x="24" y="80" width="132" height="48" rx="9" fill="#fff" stroke="#6d3fa0" stroke-width="1.6"/>
+      <text x="90" y="100" text-anchor="middle" font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="#4e2a78">input + cue</text>
+      <text x="90" y="116" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10" fill="#7a728c">tokens · regime marker</text>
+      <line x1="156" y1="104" x2="212" y2="104" stroke="#7a728c" stroke-width="1.6" marker-end="url(#ar)"/>
+      <!-- gate diamond -->
+      <path d="M270 104 L318 66 L366 104 L318 142 Z" fill="color-mix(in srgb,#6d3fa0 10%,#fff)" stroke="#6d3fa0" stroke-width="1.9"/>
+      <text x="318" y="100" text-anchor="middle" font-family="ui-monospace,monospace" font-size="14" font-weight="700" fill="#4e2a78">&lt;ono&gt;</text>
+      <text x="318" y="116" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9.5" fill="#7a728c">router</text>
+      <!-- to silo (up) -->
+      <path d="M366 90 C 430 62, 470 50, 520 50" fill="none" stroke="#1f8f66" stroke-width="2" marker-end="url(#ar)"/>
+      <text x="452" y="44" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" font-weight="700" fill="#146b4b">no order →</text>
+      <!-- to plain (down) -->
+      <path d="M366 118 C 430 146, 470 158, 520 158" fill="none" stroke="#c9701f" stroke-width="2" marker-end="url(#ar)"/>
+      <text x="452" y="176" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" font-weight="700" fill="#9a5214">order →</text>
+      <!-- silo box -->
+      <rect x="524" y="26" width="152" height="50" rx="9" fill="#fff" stroke="#1f8f66" stroke-width="1.6"/>
+      <text x="600" y="46" text-anchor="middle" font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="#146b4b">CONTENT SILO</text>
+      <text x="600" y="62" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10" fill="#7a728c">cheap · K²=16 pairs</text>
+      <!-- plain box -->
+      <rect x="524" y="134" width="152" height="50" rx="9" fill="#fff" stroke="#c9701f" stroke-width="1.6"/>
+      <text x="600" y="154" text-anchor="middle" font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="#9a5214">PLAIN EXPERT</text>
+      <text x="600" y="170" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10" fill="#7a728c">order-aware · (N+1)²=81</text>
+    </svg>
+  </div>
+  <div class="regimes" id="regimes"></div>
+</section>
+
+<section id="results">
+  <div class="eyebrow">The held-out results</div>
+  <h2 class="sec">Router vs. always-silo vs. always-plain</h2>
+  <p class="sub">All three trained from scratch on the <b>same mixed set</b> at the <b>same budget</b>. <b>silo-only</b> is cheap but can't do the order half; <b>plain-only</b> does both but always pays; the <b>router</b> sends each example to the right expert. Accuracy bars (red line = chance); the orange bar is average attention pairs, relative to plain's 81.</p>
+  <div class="rig">
+    <div class="rtop">◎ <b>results.json</b> — trained from scratch; the router-MoE backprop (with &amp; without the compute penalty) is gradient-checked in selftest.py</div>
+    <div class="rbody">
+      <div class="cfg" id="cfg"></div>
+      <div class="models" id="models"></div>
+      <div class="callout" id="callout"></div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+    <div class="snote">The router's accuracy edge comes from <b>expert specialisation</b> — the silo head trains almost only on bag examples, the plain head almost only on order examples, so each becomes clean at its own regime, and the router hands each example to its specialist. The compute saving is <b>conditional computation</b>: it pays the plain <b>N²</b> only when order actually matters. Synthetic probe, tiny models, one seed, matched budget — reproducible with <span class="mono">python train.py</span>. Not a leaderboard.</div>
+  </div>
+</section>
+
+<section id="honesty">
+  <div class="eyebrow">The colophon</div>
+  <h2 class="sec">What's real — and the one honest catch</h2>
+  <div class="two">
+    <div class="card">
+      <h3>What's real</h3>
+      <p>The router is genuinely trained: <code>selftest.py</code> <b>gradient-checks</b> the full router-MoE backprop — both with and without the compute penalty — against numerical gradients (&lt; 1e-5). It <b>beats both single-expert baselines</b> (0.88 vs plain 0.78, silo 0.68) by specialising, routes the two regimes <b>near-perfectly</b> (bag→silo ~99%, order→plain ~99%), and does it at <b>~40% less</b> average attention than always-plain. All reproducible at seed 0.</p>
+    </div>
+    <div class="card sig">
+      <h3>The one catch</h3>
+      <p>A router can only route because the regime is <b>detectable in the input</b> — here, a cue token carries it. Order-sensitivity is a property of the <i>task</i>, not always of a single example; if no cue carried it, <b>no router could tell</b>, and this one would be routing on nothing. The compute penalty is standard <b>cost-aware routing</b>, not magic. Synthetic probes, tiny models — a clean demonstration, not a benchmark.</p>
+    </div>
+  </div>
+  <div class="src">
+    SOURCE · <a href="https://github.com/DavidWise01/transformer-silo-v5">github.com/DavidWise01/transformer-silo-v5</a> · <code>model.py</code> (shared encoder + silo &amp; plain heads + the <span class="mono">&lt;ono&gt;</span> router, gradient-checked) · <code>tasks.py</code> (mixed-regime data + regime cue) · <code>train.py</code> → results.json · <code>selftest.py</code>. The pentalogy: build (v1) · measure (v2) · train one silo (v3) · two in parallel (v4) · route between them (v5).
+  </div>
+  <div class="backbar">
+    <a href="https://github.com/DavidWise01/transformer-silo-v5">⧉ the code (GitHub)</a>
+    <a href="https://davidwise01.github.io/transformer-silo/">⌗ v1</a>
+    <a href="https://davidwise01.github.io/transformer-silo-v2/">↗ v2</a>
+    <a href="https://davidwise01.github.io/transformer-silo-v3/">▲ v3</a>
+    <a href="https://davidwise01.github.io/transformer-silo-v4/">◆ v4</a>
+    <a href="https://davidwise01.github.io/ud0/">⌂ ud0</a>
+  </div>
+</section>
+
+<footer>
+  TRANSFORMER SILO v5 · the &lt;ono&gt; router · David Lee Wise / ROOT0 / TriPod LLC · CC-BY-ND-4.0<br>
+  route the cheap path when order doesn't matter · pay for order only when it does · the regime must be detectable
+</footer>
+</main>
+
+<script>
+var RESULTS = {
+  "config": {"D":6,"G":4,"N":8,"K":4,"n_train":1200,"n_test":600,"epochs":45,"lam":0.15,"seed":0,"plain_pairs":81,"silo_pairs":16},
+  "chance": 0.25,
+  "silo_only": {"acc":0.6783,"avg_pairs":16},
+  "plain_only": {"acc":0.78,"avg_pairs":81},
+  "router": {"acc":0.8767,"avg_pairs":49.1,"frac_to_silo":0.49,"route_bag_to_silo":0.986,"route_order_to_silo":0.01},
+  "verdict": "The <ono> router reads a regime cue in the input and sends order-INsensitive (bag) examples to the cheap content silo and order-SENSITIVE (order) ones to the plain expert -- here, near-perfectly (bag->silo ~99%, order->silo ~1%). It BEATS both single-expert baselines (0.88 vs plain 0.78, silo 0.68) AND spends less attention on average (~49 vs plain's 81 pairs): each expert specialises in one regime, and the router hands each example to its specialist, paying the plain N^2 cost only when order actually matters. The catch, stated plainly: the router can only do this because the regime is DETECTABLE in the input. Order-sensitivity is a property of the task; if no cue carried it, no router could tell -- it would be routing on nothing. Synthetic probe, tiny models, matched budget -- a clean demonstration, not a leaderboard."
+};
+(function(){
+"use strict";
+var R = RESULTS, c = R.config, CH = R.chance, PMAX = c.plain_pairs;
+function pc(x){ return (x*100).toFixed(1); }
+
+document.getElementById("cfg").textContent =
+  "config · D="+c.D+" · groups="+c.G+" · N="+c.N+" tokens → K="+c.K+" intents · silo K²="+(c.K*c.K)+" / plain (N+1)²="+c.plain_pairs+" attention pairs · λ(compute)="+c.lam+" · "+c.n_train+" train / "+c.n_test+" test · "+c.epochs+" epochs · seed "+c.seed;
+
+// regime routing cards (from the router's measured policy)
+var bagToSilo = R.router.route_bag_to_silo, ordToSilo = R.router.route_order_to_silo;
+document.getElementById("regimes").innerHTML =
+  '<div class="reg bag"><div class="rh">BAG · order doesn’t matter</div><div class="sub2">label = most frequent group</div>'+
+    '<div class="flow"><span>router →</span> <span class="dest">content silo</span> <span class="pct">'+pc(bagToSilo)+'%</span></div></div>'+
+  '<div class="reg ord"><div class="rh">ORDER · order matters</div><div class="sub2">label = first token’s group</div>'+
+    '<div class="flow"><span>router →</span> <span class="dest">plain expert</span> <span class="pct">'+pc(1-ordToSilo)+'%</span></div></div>';
+
+// model comparison rows
+var MODELS = [
+  {key:"silo_only", cls:"silo", name:"silo-only", tag:"always cheap"},
+  {key:"plain_only", cls:"plain", name:"plain-only", tag:"always expensive"},
+  {key:"router", cls:"router", name:"&lt;ono&gt; ROUTER", tag:"conditional", win:true}
+];
+function accMetric(m){
+  var a = R[m.key].acc;
+  return '<div class="metric"><span class="ml">acc</span>'+
+    '<span class="tr"><span class="fl acc" style="width:'+pc(a)+'%"></span><span class="chance" style="left:'+(CH*100)+'%"></span></span>'+
+    '<span class="val">'+pc(a)+'<span class="u">%</span></span></div>';
+}
+function cmpMetric(m){
+  var p = R[m.key].avg_pairs;
+  return '<div class="metric"><span class="ml">compute</span>'+
+    '<span class="tr"><span class="fl cmp" style="width:'+(p/PMAX*100).toFixed(1)+'%"></span></span>'+
+    '<span class="val">'+p+' <span class="u">pairs</span></span></div>';
+}
+document.getElementById("models").innerHTML = MODELS.map(function(m){
+  return '<div class="mrow '+m.cls+(m.win?" win":"")+'"><div><span class="name">'+m.name+'</span>'+
+    '<span class="tag">'+m.tag+'</span></div>'+
+    '<div class="metrics">'+accMetric(m)+cmpMetric(m)+'</div></div>';
+}).join("");
+
+// callout: the two headline gaps
+var rAcc=R.router.acc, pAcc=R.plain_only.acc, sAcc=R.silo_only.acc;
+var rP=R.router.avg_pairs, pP=R.plain_only.avg_pairs;
+var accUp=((rAcc-pAcc)*100).toFixed(1);
+var save=(100*(1-rP/pP)).toFixed(0);
+document.getElementById("callout").innerHTML =
+  'The router is <b>+'+accUp+' pts</b> over always-plain (and +'+((rAcc-sAcc)*100).toFixed(1)+' over always-silo) — '+
+  'while spending <span class="save">'+save+'% less</span> attention on average ('+rP+' vs '+pP+' pairs). '+
+  'Best accuracy <i>and</i> least average compute, on this task.';
+
+document.getElementById("verdict").textContent = R.verdict;
+})();
+</script>
+</body>
+</html>

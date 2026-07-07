@@ -1,0 +1,32 @@
+{
+  "config": {
+    "D": 6,
+    "G": 4,
+    "N": 8,
+    "K": 4,
+    "n_train": 1200,
+    "n_test": 600,
+    "epochs": 45,
+    "lam": 0.15,
+    "seed": 0,
+    "plain_pairs": 81,
+    "silo_pairs": 16
+  },
+  "chance": 0.25,
+  "silo_only": {
+    "acc": 0.6783,
+    "avg_pairs": 16
+  },
+  "plain_only": {
+    "acc": 0.78,
+    "avg_pairs": 81
+  },
+  "router": {
+    "acc": 0.8767,
+    "avg_pairs": 49.1,
+    "frac_to_silo": 0.49,
+    "route_bag_to_silo": 0.986,
+    "route_order_to_silo": 0.01
+  },
+  "verdict": "The <ono> router reads a regime cue in the input and sends order-INsensitive (bag) examples to the cheap content silo and order-SENSITIVE (order) ones to the plain expert -- here, near-perfectly (bag->silo ~99%, order->silo ~1%). It BEATS both single-expert baselines (0.88 vs plain 0.78, silo 0.68) AND spends less attention on average (~49 vs plain's 81 pairs): each expert specialises in one regime, and the router hands each example to its specialist, paying the plain N^2 cost only when order actually matters. The catch, stated plainly: the router can only do this because the regime is DETECTABLE in the input. Order-sensitivity is a property of the task; if no cue carried it, no router could tell -- it would be routing on nothing. Synthetic probe, tiny models, matched budget -- a clean demonstration, not a leaderboard."
+}
