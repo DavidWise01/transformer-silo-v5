@@ -1,0 +1,83 @@
+{
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "rows": [
+    {
+      "seed": 0,
+      "silo": 0.665,
+      "plain": 0.9167,
+      "router": 0.9367,
+      "router_minus_plain": 0.02,
+      "router_pairs": 49.0,
+      "plain_pairs": 81,
+      "compute_saved": 0.3951,
+      "bag_to_silo": 1.0,
+      "order_to_plain": 1.0
+    },
+    {
+      "seed": 1,
+      "silo": 0.6117,
+      "plain": 0.9483,
+      "router": 0.995,
+      "router_minus_plain": 0.0467,
+      "router_pairs": 48.6,
+      "plain_pairs": 81,
+      "compute_saved": 0.4,
+      "bag_to_silo": 1.0,
+      "order_to_plain": 0.987
+    },
+    {
+      "seed": 2,
+      "silo": 0.635,
+      "plain": 0.78,
+      "router": 0.8717,
+      "router_minus_plain": 0.0917,
+      "router_pairs": 48.2,
+      "plain_pairs": 81,
+      "compute_saved": 0.4049,
+      "bag_to_silo": 0.997,
+      "order_to_plain": 0.97
+    },
+    {
+      "seed": 3,
+      "silo": 0.5917,
+      "plain": 0.94,
+      "router": 0.9783,
+      "router_minus_plain": 0.0383,
+      "router_pairs": 49.0,
+      "plain_pairs": 81,
+      "compute_saved": 0.3951,
+      "bag_to_silo": 1.0,
+      "order_to_plain": 1.0
+    },
+    {
+      "seed": 4,
+      "silo": 0.6283,
+      "plain": 0.9933,
+      "router": 0.9633,
+      "router_minus_plain": -0.03,
+      "router_pairs": 49.4,
+      "plain_pairs": 81,
+      "compute_saved": 0.3901,
+      "bag_to_silo": 0.915,
+      "order_to_plain": 0.928
+    }
+  ],
+  "router_minus_plain": {
+    "min": -0.03,
+    "max": 0.0917,
+    "mean": 0.0333
+  },
+  "compute_saved": {
+    "min": 0.3901,
+    "max": 0.4049,
+    "mean": 0.397
+  },
+  "router_beats_plain_every_seed": false,
+  "router_ge_plain_every_seed": false
+}

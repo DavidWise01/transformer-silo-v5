@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-"""The data world + the silo front-end for the v3 comparison.
+"""The data world + the silo front-end for the v5 router comparison.
 
 A fixed embedding world: G latent groups, each with a prototype vector; V tokens,
 each belonging to a group (embedding = its group's prototype + small noise), so
 token embeddings genuinely cluster by group. Fixed positional embeddings let the
-PLAIN arm see order; the SILO arm gets K k-means centroids of the bag (weighted
-by cluster size) and has NO order.
+PLAIN expert see order; the SILO expert gets K k-means centroids of the bag
+(weighted by cluster size) and has NO order.
 
-Two standard synthetic probes (the kind used for architecture ablations):
-  * PLURALITY  (order-INsensitive): label = the most frequent group in the bag.
-                Frequency is preserved by size-weighted pooling, so both arms can
-                learn it -- the silo at K^2 attention instead of N^2.
-  * FIRST      (order-SENSITIVE):   label = the group of the FIRST token. Only an
-                order-aware model can do better than chance; the silo, being an
-                unordered set of intents, cannot -- and v3 reports that plainly.
+The v5 task is MIXED-regime (see the bottom of this file): each example is either
+a BAG (label = most frequent group; order-INsensitive) or an ORDER example (label
+= the first token's group; order-SENSITIVE), with a regime cue token prepended so
+the router CAN detect the regime -- the honest condition for routing to be possible.
 """
 from __future__ import annotations
 import numpy as np
@@ -30,12 +27,11 @@ def make_world(seed=0):
     protos = rng.standard_normal((G, D)) * 2.2            # well-separated group prototypes
     tok_group = np.array([g for g in range(G) for _ in range(V // G)])
     E = np.stack([protos[tok_group[t]] + rng.standard_normal(D) * 0.35 for t in range(V)])
-    Ppos = rng.standard_normal((N, D)) * 0.5             # positional embeddings (plain arm)
-    BinPos = rng.standard_normal((N, D)) * 0.9           # per-bin positional codes (position-silo)
+    Ppos = rng.standard_normal((N, D)) * 0.5             # positional embeddings (plain expert)
     RegE = rng.standard_normal((2, D)) * 2.0             # regime cue: [0]=bag, [1]=order
     MarkPos = rng.standard_normal(D) * 0.5               # position code for the regime marker
     return {"protos": protos, "tok_group": tok_group, "E": E, "Ppos": Ppos,
-            "BinPos": BinPos, "RegE": RegE, "MarkPos": MarkPos, "rng_seed": seed}
+            "RegE": RegE, "MarkPos": MarkPos, "rng_seed": seed}
 
 
 # ---------- the silo front-end: k-means on the bag's token embeddings ----------
@@ -65,68 +61,7 @@ def centrifuge(vs, k, max_spins=25):
     return cen, sizes
 
 
-# ---------- example -> the two arms' inputs ----------
-def plain_input(world, tokens):
-    X = world["E"][tokens] + world["Ppos"][:len(tokens)]
-    return X, np.ones(len(tokens))
-
-
-def silo_input(world, tokens, k=K):
-    """The CONTENT silo (v3): k-means on token embeddings -> K intents. Orderless."""
-    cen, sizes = centrifuge(world["E"][tokens], k)
-    return cen, sizes
-
-
-def position_silo_input(world, tokens, k=K):
-    """The POSITION silo: chunk the sequence into K ordered bins; each intent is
-    the mean embedding of its bin plus a per-bin positional code, so the encoder
-    can tell the bins apart -- this branch KEEPS order. Weighted by bin size."""
-    n = len(tokens)
-    edges = np.linspace(0, n, k + 1).astype(int)
-    intents, sizes = [], []
-    for b in range(k):
-        lo, hi = int(edges[b]), int(edges[b + 1])
-        if hi <= lo:
-            hi = lo + 1
-        idx = list(range(lo, min(hi, n)))
-        emb = world["E"][[tokens[i] for i in idx]].mean(axis=0)
-        intents.append(emb + world["BinPos"][b])
-        sizes.append(len(idx))
-    return np.stack(intents), np.array(sizes, dtype=float)
-
-
-# ---------- the two tasks ----------
-def _bag(rng):
-    return rng.integers(0, G, size=N)                    # a group per position
-
-
-def _sample(world, task, n_examples, seed):
-    rng = np.random.default_rng(seed)
-    tg = world["tok_group"]
-    tok_of_group = [np.where(tg == g)[0] for g in range(G)]
-    X, Y = [], []
-    for _ in range(n_examples):
-        groups = _bag(rng)
-        tokens = np.array([rng.choice(tok_of_group[g]) for g in groups])
-        if task == "plurality":
-            counts = np.bincount(groups, minlength=G)
-            y = int(np.argmax(counts))                   # most frequent group (ties -> lowest)
-        elif task == "first":
-            y = int(groups[0])                           # the first token's group
-        else:
-            raise ValueError(task)
-        X.append(tokens); Y.append(y)
-    return X, np.array(Y)
-
-
-def dataset(world, task, n_train=800, n_test=400, seed=100):
-    Xtr, Ytr = _sample(world, task, n_train, seed)
-    Xte, Yte = _sample(world, task, n_test, seed + 1)
-    return {"task": task, "Xtr": Xtr, "Ytr": Ytr, "Xte": Xte, "Yte": Yte,
-            "n_classes": G, "chance": 1.0 / G}
-
-
-# ---------- v5: the MIXED-regime dataset (a cue tells you order vs no-order) ----
+# ---------- the MIXED-regime dataset (a cue tells you order vs no-order) ----
 # Each example is either a BAG (label = plurality of the content groups; order
 # does NOT matter) or an ORDER example (label = the first content token's group;
 # order DOES matter). A regime cue token is prepended so the router CAN detect the

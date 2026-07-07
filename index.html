@@ -130,7 +130,7 @@ footer{padding:26px 0 60px;text-align:center;font-family:var(--mono);font-size:1
     <div>
       <div class="kick">the &lt;ono&gt; router · v5</div>
       <h1 class="mh">THE ROUTER</h1>
-      <p class="lede">Why run every input through the expensive path? v5 puts a <b>router</b> up front — the <code>&lt;ono&gt;</code> <b>(order / no-order)</b> gate — that reads the input and decides: send it to <b>Dave's cheap silo</b> when order doesn't matter, or the <b>plain order-aware expert</b> when it does. Trained from scratch, gradient-checked. It <b>beats both single experts</b> and spends <b>less attention on average</b> — with one honest catch, stated below.</p>
+      <p class="lede">Why run every input through the expensive path? v5 puts a <b>router</b> up front — the <code>&lt;ono&gt;</code> <b>(order / no-order)</b> gate — that reads the input and decides: send it to <b>Dave's cheap silo</b> when order doesn't matter, or the <b>plain order-aware expert</b> when it does. Trained from scratch, gradient-checked. It <b>matches the expensive expert</b> while spending <b>~40% less attention on average</b>, and reliably beats the cheap one — with honest caveats, stated below.</p>
     </div>
   </div>
 </div></header>
@@ -179,7 +179,7 @@ footer{padding:26px 0 60px;text-align:center;font-family:var(--mono);font-size:1
 <section id="results">
   <div class="eyebrow">The held-out results</div>
   <h2 class="sec">Router vs. always-silo vs. always-plain</h2>
-  <p class="sub">All three trained from scratch on the <b>same mixed set</b> at the <b>same budget</b>. <b>silo-only</b> is cheap but can't do the order half; <b>plain-only</b> does both but always pays; the <b>router</b> sends each example to the right expert. Accuracy bars (red line = chance); the orange bar is average attention pairs, relative to plain's 81.</p>
+  <p class="sub">All three trained from scratch on the <b>same mixed set</b>, <b>both arms to convergence</b> (300 epochs). <b>silo-only</b> is cheap but can't do the order half; <b>plain-only</b> does both but always pays; the <b>router</b> sends each example to the right expert. Bars below are seed 0; the callout gives the range across 5 seeds. Accuracy bars (red line = chance); the orange bar is average attention pairs, relative to plain's 81.</p>
   <div class="rig">
     <div class="rtop">◎ <b>results.json</b> — trained from scratch; the router-MoE backprop (with &amp; without the compute penalty) is gradient-checked in selftest.py</div>
     <div class="rbody">
@@ -188,21 +188,21 @@ footer{padding:26px 0 60px;text-align:center;font-family:var(--mono);font-size:1
       <div class="callout" id="callout"></div>
       <div class="verdict" id="verdict"></div>
     </div>
-    <div class="snote">The router's accuracy edge comes from <b>expert specialisation</b> — the silo head trains almost only on bag examples, the plain head almost only on order examples, so each becomes clean at its own regime, and the router hands each example to its specialist. The compute saving is <b>conditional computation</b>: it pays the plain <b>N²</b> only when order actually matters. Synthetic probe, tiny models, one seed, matched budget — reproducible with <span class="mono">python train.py</span>. Not a leaderboard.</div>
+    <div class="snote">The robust win is <b>conditional computation</b>: the router pays the plain <b>N²</b> only when order actually matters, so it saves ~40% average attention on <b>every</b> seed. Its small accuracy edge over plain (mean +3.3 pts, but <b>−3 to +9 across seeds</b>) comes from <b>expert specialisation</b> — each head trains almost only on its own regime and gets clean at it. On this world silo-only and plain-only <b>tie on the bag task</b> (0.915 each); the silo <b>collapses on order</b> (0.42) while plain handles it (0.92), which is why the always-cheap silo can't stand alone. Synthetic probe, tiny models, 5 seeds — reproducible with <span class="mono">python train.py</span> / <span class="mono">python sweep.py</span>. Not a leaderboard.</div>
   </div>
 </section>
 
 <section id="honesty">
   <div class="eyebrow">The colophon</div>
-  <h2 class="sec">What's real — and the one honest catch</h2>
+  <h2 class="sec">What's real — and the honest caveats</h2>
   <div class="two">
     <div class="card">
       <h3>What's real</h3>
-      <p>The router is genuinely trained: <code>selftest.py</code> <b>gradient-checks</b> the full router-MoE backprop — both with and without the compute penalty — against numerical gradients (&lt; 1e-5). It <b>beats both single-expert baselines</b> (0.88 vs plain 0.78, silo 0.68) by specialising, routes the two regimes <b>near-perfectly</b> (bag→silo ~99%, order→plain ~99%), and does it at <b>~40% less</b> average attention than always-plain. All reproducible at seed 0.</p>
+      <p>The router is genuinely trained: <code>selftest.py</code> <b>gradient-checks</b> the full router-MoE backprop — with and without the compute penalty — against numerical gradients (&lt; 1e-5). It routes the two regimes <b>near-perfectly</b> (seed 0: bag→silo 100%, order→plain 100%), and — verified across <b>5 seeds</b> — spends <b>~40% less</b> average attention than always-plain on <b>every</b> seed while staying within a few points of it. It reliably beats the always-cheap silo. Reproducible: <code>python train.py</code>, <code>python sweep.py</code>.</p>
     </div>
     <div class="card sig">
-      <h3>The one catch</h3>
-      <p>A router can only route because the regime is <b>detectable in the input</b> — here, a cue token carries it. Order-sensitivity is a property of the <i>task</i>, not always of a single example; if no cue carried it, <b>no router could tell</b>, and this one would be routing on nothing. The compute penalty is standard <b>cost-aware routing</b>, not magic. Synthetic probes, tiny models — a clean demonstration, not a benchmark.</p>
+      <h3>The caveats</h3>
+      <p>Not a guaranteed accuracy win: router − plain runs <b>−3 to +9 pts</b> across seeds — it <b>trails plain on 1 of 5</b>. And a router can only route because the regime is <b>detectable in the input</b> (a cue carries it); if nothing carried it, <b>no router could tell</b>. The compute penalty is standard <b>cost-aware routing</b>, not magic; the router adds a second head + gate (<b>428 vs 386</b> params) over a shared encoder. Synthetic probes, tiny models — a demonstration, not a benchmark.</p>
     </div>
   </div>
   <div class="src">
@@ -226,12 +226,13 @@ footer{padding:26px 0 60px;text-align:center;font-family:var(--mono);font-size:1
 
 <script>
 var RESULTS = {
-  "config": {"D":6,"G":4,"N":8,"K":4,"n_train":1200,"n_test":600,"epochs":45,"lam":0.15,"seed":0,"plain_pairs":81,"silo_pairs":16},
+  "config": {"D":6,"G":4,"N":8,"K":4,"n_train":1200,"n_test":600,"epochs":300,"lam":0.15,"seed":0,"plain_pairs":81,"silo_pairs":16,"baseline_params":386,"router_params":428},
   "chance": 0.25,
-  "silo_only": {"acc":0.6783,"avg_pairs":16},
-  "plain_only": {"acc":0.78,"avg_pairs":81},
-  "router": {"acc":0.8767,"avg_pairs":49.1,"frac_to_silo":0.49,"route_bag_to_silo":0.986,"route_order_to_silo":0.01},
-  "verdict": "The <ono> router reads a regime cue in the input and sends order-INsensitive (bag) examples to the cheap content silo and order-SENSITIVE (order) ones to the plain expert -- here, near-perfectly (bag->silo ~99%, order->silo ~1%). It BEATS both single-expert baselines (0.88 vs plain 0.78, silo 0.68) AND spends less attention on average (~49 vs plain's 81 pairs): each expert specialises in one regime, and the router hands each example to its specialist, paying the plain N^2 cost only when order actually matters. The catch, stated plainly: the router can only do this because the regime is DETECTABLE in the input. Order-sensitivity is a property of the task; if no cue carried it, no router could tell -- it would be routing on nothing. Synthetic probe, tiny models, matched budget -- a clean demonstration, not a leaderboard."
+  "silo_only": {"acc":0.665,"avg_pairs":16,"by_regime":{"bag":0.9153,"order":0.423}},
+  "plain_only": {"acc":0.9167,"avg_pairs":81,"by_regime":{"bag":0.9153,"order":0.918}},
+  "router": {"acc":0.9367,"avg_pairs":49.0,"frac_to_silo":0.492,"route_bag_to_silo":1.0,"route_order_to_silo":0.0},
+  "sweep": {"seeds":5,"router_minus_plain":{"min":-0.030,"mean":0.033,"max":0.092},"compute_saved":{"min":0.39,"mean":0.40,"max":0.40},"beats_plain":"4 / 5 seeds","beats_silo":"5 / 5 seeds"},
+  "verdict": "The <ono> router reads a regime cue and routes order-INsensitive (bag) examples to the cheap content silo and order-SENSITIVE (order) ones to the plain expert -- near-perfectly (bag->silo 100%, order->plain 100% at seed 0). The ROBUST, reproducible win is CONDITIONAL COMPUTATION: across 5 seeds the router spends ~40% less attention on average (49 vs plain's 81 pairs, every seed) while landing within a few points of the strong plain baseline -- router minus plain ranges -3.0 to +9.2 pts (mean +3.3). So it USUALLY edges plain, but NOT always: on 1 of 5 seeds it trails. It does reliably crush the always-cheap silo (0.66 at seed 0 -- the silo alone can't do the order half). Net: same-ballpark accuracy as the expensive model at ~40% less compute, plus a small, seed-DEPENDENT accuracy bump from expert specialisation -- not a guaranteed accuracy win, and we don't claim one. The catch, stated plainly: a router can only route because the regime is DETECTABLE in the input; if no cue carried it, no router could tell -- it would be routing on nothing. The router carries a second head + gate (428 vs 386 params) over a SHARED encoder -- tiny extra capacity, noted not hidden. Synthetic probe, tiny models, both arms trained to convergence, 5 seeds -- a clean demonstration, not a leaderboard."
 };
 (function(){
 "use strict";
@@ -239,7 +240,7 @@ var R = RESULTS, c = R.config, CH = R.chance, PMAX = c.plain_pairs;
 function pc(x){ return (x*100).toFixed(1); }
 
 document.getElementById("cfg").textContent =
-  "config · D="+c.D+" · groups="+c.G+" · N="+c.N+" tokens → K="+c.K+" intents · silo K²="+(c.K*c.K)+" / plain (N+1)²="+c.plain_pairs+" attention pairs · λ(compute)="+c.lam+" · "+c.n_train+" train / "+c.n_test+" test · "+c.epochs+" epochs · seed "+c.seed;
+  "config · D="+c.D+" · groups="+c.G+" · N="+c.N+" tokens → K="+c.K+" intents · silo K²="+(c.K*c.K)+" / plain (N+1)²="+c.plain_pairs+" attention pairs · λ(compute)="+c.lam+" · "+c.n_train+" train / "+c.n_test+" test · "+c.epochs+" epochs (to convergence) · params: baselines "+c.baseline_params+" / router "+c.router_params+" (shared encoder) · seed "+c.seed;
 
 // regime routing cards (from the router's measured policy)
 var bagToSilo = R.router.route_bag_to_silo, ordToSilo = R.router.route_order_to_silo;
@@ -273,15 +274,16 @@ document.getElementById("models").innerHTML = MODELS.map(function(m){
     '<div class="metrics">'+accMetric(m)+cmpMetric(m)+'</div></div>';
 }).join("");
 
-// callout: the two headline gaps
-var rAcc=R.router.acc, pAcc=R.plain_only.acc, sAcc=R.silo_only.acc;
-var rP=R.router.avg_pairs, pP=R.plain_only.avg_pairs;
-var accUp=((rAcc-pAcc)*100).toFixed(1);
+// callout: the HONEST, robust framing (seed 0 + the 5-seed sweep range)
+var rP=R.router.avg_pairs, pP=R.plain_only.avg_pairs, sw=R.sweep;
 var save=(100*(1-rP/pP)).toFixed(0);
+var rmpMin=(sw.router_minus_plain.min*100).toFixed(1), rmpMax='+'+(sw.router_minus_plain.max*100).toFixed(1), rmpMean='+'+(sw.router_minus_plain.mean*100).toFixed(1);
 document.getElementById("callout").innerHTML =
-  'The router is <b>+'+accUp+' pts</b> over always-plain (and +'+((rAcc-sAcc)*100).toFixed(1)+' over always-silo) — '+
-  'while spending <span class="save">'+save+'% less</span> attention on average ('+rP+' vs '+pP+' pairs). '+
-  'Best accuracy <i>and</i> least average compute, on this task.';
+  'The <b>robust</b> win is <span class="save">conditional computation</span>: the router spends <span class="save">~'+save+'% less</span> '+
+  'attention on average ('+rP+' vs '+pP+' pairs) on <b>every</b> one of 5 seeds, while landing within a few points of the strong '+
+  'plain baseline — <b>router − plain = '+rmpMin+' to '+rmpMax+' pts</b> (mean '+rmpMean+'). It <b>usually</b> edges plain '+
+  '('+sw.beats_plain+') but <b>not always</b>; it <b>reliably</b> beats the cheap silo ('+sw.beats_silo+'). '+
+  'Same-ballpark accuracy as the expensive model at ~'+save+'% less compute — <i>not</i> a guaranteed accuracy win.';
 
 document.getElementById("verdict").textContent = R.verdict;
 })();

@@ -18,7 +18,7 @@ from model import (init_params, loss_and_grad, encode, encode_backward,
 from tasks import make_world, mixed_dataset, moe_inputs, N, K, D, G
 
 H = 16
-EPOCHS = 45
+EPOCHS = 300          # train all three arms to convergence (a fair, matched budget)
 LR = 0.01
 BATCH = 32
 COST_S = (K * K) / ((N + 1) ** 2)        # silo attention pairs / plain attention pairs
@@ -116,13 +116,19 @@ def run(seed=0):
     plain_pairs = (N + 1) ** 2
     silo_pairs = K * K
 
-    # baselines
-    Pp, plain_te = train_single(world, ds["train"], "plain", seed=seed)
-    plain_acc = eval_single(Pp, [(inp, y) for inp, y in
-                                 [((pX, pw), y) for (r, t, y) in ds["test"]
-                                  for (_, _, pX, pw) in [moe_inputs(world, r, t)]]])
+    # baselines -- trained to convergence, scored overall AND per regime
+    def per_regime(pred_fn):
+        tot = {0: [0, 0], 1: [0, 0]}
+        for (r, t, y) in ds["test"]:
+            tot[r][1] += 1; tot[r][0] += int(pred_fn(r, t) == y)
+        acc = sum(v[0] for v in tot.values()) / sum(v[1] for v in tot.values())
+        return round(acc, 4), {"bag": round(tot[0][0] / max(1, tot[0][1]), 4),
+                               "order": round(tot[1][0] / max(1, tot[1][1]), 4)}
+
+    Pp, _ = train_single(world, ds["train"], "plain", seed=seed)
+    plain_acc, plain_reg = per_regime(lambda r, t: single_pred(Pp, *moe_inputs(world, r, t)[2:4]))
     Ps, _ = train_single(world, ds["train"], "silo", seed=seed)
-    silo_acc = sum(single_pred(Ps, *moe_inputs(world, r, t)[:2]) == y for (r, t, y) in ds["test"]) / len(ds["test"])
+    silo_acc, silo_reg = per_regime(lambda r, t: single_pred(Ps, *moe_inputs(world, r, t)[:2]))
 
     # router MoE
     Pm = train_moe(world, ds["train"], seed=seed)
@@ -136,13 +142,15 @@ def run(seed=0):
         if which == "silo":
             to_silo += 1; reg_route[r]["silo"] += 1
     n = len(ds["test"])
+    nparams = lambda P: int(sum(v.size for v in P.values()))
     return {
         "config": {"D": D, "G": G, "N": N, "K": K, "n_train": 1200, "n_test": 600,
                    "epochs": EPOCHS, "lam": LAM, "seed": seed,
-                   "plain_pairs": plain_pairs, "silo_pairs": silo_pairs},
+                   "plain_pairs": plain_pairs, "silo_pairs": silo_pairs,
+                   "baseline_params": nparams(Pp), "router_params": nparams(Pm)},
         "chance": round(ds["chance"], 4),
-        "silo_only": {"acc": round(silo_acc, 4), "avg_pairs": silo_pairs},
-        "plain_only": {"acc": round(plain_acc, 4), "avg_pairs": plain_pairs},
+        "silo_only": {"acc": silo_acc, "avg_pairs": silo_pairs, "by_regime": silo_reg},
+        "plain_only": {"acc": plain_acc, "avg_pairs": plain_pairs, "by_regime": plain_reg},
         "router": {"acc": round(correct / n, 4), "avg_pairs": round(comp / n, 1),
                    "frac_to_silo": round(to_silo / n, 3),
                    "route_bag_to_silo": round(reg_route[0]["silo"] / max(1, reg_route[0]["n"]), 3),
@@ -151,17 +159,22 @@ def run(seed=0):
 
 
 VERDICT = (
-    "The <ono> router reads a regime cue in the input and sends order-INsensitive "
-    "(bag) examples to the cheap content silo and order-SENSITIVE (order) ones to "
-    "the plain expert -- here, near-perfectly (bag->silo ~99%, order->silo ~1%). "
-    "It BEATS both single-expert baselines (0.88 vs plain 0.78, silo 0.68) AND "
-    "spends less attention on average (~49 vs plain's 81 pairs): each expert "
-    "specialises in one regime, and the router hands each example to its "
-    "specialist, paying the plain N^2 cost only when order actually matters. The "
-    "catch, stated plainly: the router can only do this because the regime is "
-    "DETECTABLE in the input. Order-sensitivity is a property of the task; if no "
-    "cue carried it, no router could tell -- it would be routing on nothing. "
-    "Synthetic probe, tiny models, matched budget -- a clean demonstration, not a leaderboard."
+    "The <ono> router reads a regime cue and routes order-INsensitive (bag) examples "
+    "to the cheap content silo and order-SENSITIVE (order) ones to the plain expert -- "
+    "near-perfectly (bag->silo 100%, order->plain 100% at seed 0). The ROBUST, "
+    "reproducible win is CONDITIONAL COMPUTATION: across 5 seeds the router spends ~40% "
+    "less attention on average (49 vs plain's 81 pairs, every seed) while landing within "
+    "a few points of the strong plain baseline -- router minus plain ranges -3.0 to +9.2 "
+    "pts (mean +3.3). So it USUALLY edges plain, but NOT always: on 1 of 5 seeds it "
+    "trails. It does reliably crush the always-cheap silo (0.66 at seed 0 -- the silo "
+    "alone can't do the order half). Net: same-ballpark accuracy as the expensive model "
+    "at ~40% less compute, plus a small, seed-DEPENDENT accuracy bump from expert "
+    "specialisation -- not a guaranteed accuracy win, and we don't claim one. The catch, "
+    "stated plainly: a router can only route because the regime is DETECTABLE in the "
+    "input; if no cue carried it, no router could tell -- it would be routing on nothing. "
+    "The router carries a second head + gate (428 vs 386 params) over a SHARED encoder -- "
+    "tiny extra capacity, noted not hidden. Synthetic probe, tiny models, both arms "
+    "trained to convergence, 5 seeds -- a clean demonstration, not a leaderboard."
 )
 
 if __name__ == "__main__":
@@ -170,9 +183,10 @@ if __name__ == "__main__":
     with open("results.json", "w") as f:
         json.dump(res, f, indent=2)
     r = res
-    print(f"chance {r['chance']:.2f}")
-    print(f"silo-only  acc={r['silo_only']['acc']:.3f}  pairs={r['silo_only']['avg_pairs']}")
-    print(f"plain-only acc={r['plain_only']['acc']:.3f}  pairs={r['plain_only']['avg_pairs']}")
+    print(f"chance {r['chance']:.2f}  ({EPOCHS} epochs, to convergence)")
+    print(f"silo-only  acc={r['silo_only']['acc']:.3f}  pairs={r['silo_only']['avg_pairs']}  by_regime={r['silo_only']['by_regime']}")
+    print(f"plain-only acc={r['plain_only']['acc']:.3f}  pairs={r['plain_only']['avg_pairs']}  by_regime={r['plain_only']['by_regime']}")
+    print(f"params: baseline={r['config']['baseline_params']}  router={r['config']['router_params']}")
     print(f"ROUTER     acc={r['router']['acc']:.3f}  avg_pairs={r['router']['avg_pairs']}  "
           f"to_silo={r['router']['frac_to_silo']}  (bag->silo {r['router']['route_bag_to_silo']}, "
           f"order->silo {r['router']['route_order_to_silo']})")

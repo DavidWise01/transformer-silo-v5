@@ -6,27 +6,37 @@
     "K": 4,
     "n_train": 1200,
     "n_test": 600,
-    "epochs": 45,
+    "epochs": 300,
     "lam": 0.15,
     "seed": 0,
     "plain_pairs": 81,
-    "silo_pairs": 16
+    "silo_pairs": 16,
+    "baseline_params": 386,
+    "router_params": 428
   },
   "chance": 0.25,
   "silo_only": {
-    "acc": 0.6783,
-    "avg_pairs": 16
+    "acc": 0.665,
+    "avg_pairs": 16,
+    "by_regime": {
+      "bag": 0.9153,
+      "order": 0.423
+    }
   },
   "plain_only": {
-    "acc": 0.78,
-    "avg_pairs": 81
+    "acc": 0.9167,
+    "avg_pairs": 81,
+    "by_regime": {
+      "bag": 0.9153,
+      "order": 0.918
+    }
   },
   "router": {
-    "acc": 0.8767,
-    "avg_pairs": 49.1,
-    "frac_to_silo": 0.49,
-    "route_bag_to_silo": 0.986,
-    "route_order_to_silo": 0.01
+    "acc": 0.9367,
+    "avg_pairs": 49.0,
+    "frac_to_silo": 0.492,
+    "route_bag_to_silo": 1.0,
+    "route_order_to_silo": 0.0
   },
-  "verdict": "The <ono> router reads a regime cue in the input and sends order-INsensitive (bag) examples to the cheap content silo and order-SENSITIVE (order) ones to the plain expert -- here, near-perfectly (bag->silo ~99%, order->silo ~1%). It BEATS both single-expert baselines (0.88 vs plain 0.78, silo 0.68) AND spends less attention on average (~49 vs plain's 81 pairs): each expert specialises in one regime, and the router hands each example to its specialist, paying the plain N^2 cost only when order actually matters. The catch, stated plainly: the router can only do this because the regime is DETECTABLE in the input. Order-sensitivity is a property of the task; if no cue carried it, no router could tell -- it would be routing on nothing. Synthetic probe, tiny models, matched budget -- a clean demonstration, not a leaderboard."
+  "verdict": "The <ono> router reads a regime cue and routes order-INsensitive (bag) examples to the cheap content silo and order-SENSITIVE (order) ones to the plain expert -- near-perfectly (bag->silo 100%, order->plain 100% at seed 0). The ROBUST, reproducible win is CONDITIONAL COMPUTATION: across 5 seeds the router spends ~40% less attention on average (49 vs plain's 81 pairs, every seed) while landing within a few points of the strong plain baseline -- router minus plain ranges -3.0 to +9.2 pts (mean +3.3). So it USUALLY edges plain, but NOT always: on 1 of 5 seeds it trails. It does reliably crush the always-cheap silo (0.66 at seed 0 -- the silo alone can't do the order half). Net: same-ballpark accuracy as the expensive model at ~40% less compute, plus a small, seed-DEPENDENT accuracy bump from expert specialisation -- not a guaranteed accuracy win, and we don't claim one. The catch, stated plainly: a router can only route because the regime is DETECTABLE in the input; if no cue carried it, no router could tell -- it would be routing on nothing. The router carries a second head + gate (428 vs 386 params) over a SHARED encoder -- tiny extra capacity, noted not hidden. Synthetic probe, tiny models, both arms trained to convergence, 5 seeds -- a clean demonstration, not a leaderboard."
 }
